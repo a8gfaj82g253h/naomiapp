@@ -5,8 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tareas del Hogar</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-<script type="module">
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 <style>
 :root {
   --bg: #0e0e10;
@@ -1027,7 +1025,7 @@ body {
 
 <div class="toast" id="toast"></div>
 
-
+<script>
 // ── SVG ICONS ─────────────────────────────────────────────────────────
 // Lucide-style outline icons
 const ICONS = {
@@ -1106,20 +1104,79 @@ const DEFAULT_REWARDS = [
 const SUPABASE_URL = 'https://rgsnqsmgynfujcnnndmc.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_xe02LPeusD8fO8Fa0ewmOw_kLd0a_Ne';
 
-const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let currentUser = null;
+let _accessToken = null;
 
-async function signInGoogle() {
-  const { error } = await sb.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: window.location.href }
-  });
-  if (error) showAuthError(error.message);
+// ── AUTH via OAuth redirect ─────────────────────────────────────────
+function signInGoogle() {
+  const redirectTo = encodeURIComponent(window.location.href.split('#')[0]);
+  window.location.href = `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${redirectTo}`;
 }
 
 async function signOut() {
-  await sb.auth.signOut();
+  await sbFetch('POST', '/auth/v1/logout', {});
+  _accessToken = null;
+  currentUser = null;
+  sessionStorage.removeItem('sb_session');
   location.reload();
+}
+
+// Fetch helper para auth endpoints
+async function sbFetch(method, path, body) {
+  const headers = {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_ANON_KEY,
+  };
+  if (_accessToken) headers['Authorization'] = `Bearer ${_accessToken}`;
+  const res = await fetch(SUPABASE_URL + path, {
+    method,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok && res.status !== 204) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error_description || err.message || res.statusText);
+  }
+  return res.status === 204 ? null : res.json().catch(() => null);
+}
+
+// Fetch helper para tabla REST
+async function sbTable(method, path, body) {
+  const headers = {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_ANON_KEY,
+    'Authorization': `Bearer ${_accessToken}`,
+    'Prefer': method === 'POST' ? 'resolution=merge-duplicates,return=minimal' : 'return=minimal',
+  };
+  const res = await fetch(SUPABASE_URL + '/rest/v1' + path, {
+    method, headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok && res.status !== 204) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || res.statusText);
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+// Extraer sesión del hash de la URL (después del redirect de Google)
+async function getSessionFromHash() {
+  const hash = window.location.hash;
+  if (!hash) return null;
+  const params = new URLSearchParams(hash.slice(1));
+  const access_token = params.get('access_token');
+  const refresh_token = params.get('refresh_token');
+  if (!access_token) return null;
+  // Limpiar hash de la URL
+  history.replaceState(null, '', window.location.pathname);
+  return { access_token, refresh_token };
+}
+
+async function getUserFromToken(access_token) {
+  _accessToken = access_token;
+  const data = await sbFetch('GET', '/auth/v1/user');
+  return data;
 }
 
 function showAuthError(msg) {
@@ -1158,50 +1215,71 @@ function saveLocal(data) {
 let _saveTimeout = null;
 function save() {
   saveLocal(state);
-  // Debounce remote save 1.5s para no saturar con cada tecla
   clearTimeout(_saveTimeout);
   _saveTimeout = setTimeout(saveRemote, 1500);
 }
 
 async function saveRemote() {
-  if (!currentUser) return;
+  if (!currentUser || !_accessToken) return;
   setSyncStatus('Guardando…');
-  const { error } = await sb.from('user_state').upsert({
-    user_id: currentUser.id,
-    state: state,
-    updated_at: new Date().toISOString()
-  }, { onConflict: 'user_id' });
-  if (error) { setSyncStatus('Error al guardar', '#f87171'); console.error(error); }
-  else setSyncStatus('Guardado ✓', 'var(--green)');
+  try {
+    await sbTable('POST', '/user_state', {
+      user_id: currentUser.id,
+      state: state,
+      updated_at: new Date().toISOString()
+    });
+    setSyncStatus('Guardado ✓', 'var(--green)');
+  } catch(e) {
+    setSyncStatus('Error al guardar', '#f87171');
+    console.error(e);
+  }
 }
 
 async function loadRemote() {
-  if (!currentUser) return null;
-  const { data, error } = await sb.from('user_state')
-    .select('state')
-    .eq('user_id', currentUser.id)
-    .single();
-  if (error || !data) return null;
-  return data.state;
+  if (!currentUser || !_accessToken) return null;
+  try {
+    const data = await sbTable('GET', `/user_state?user_id=eq.${currentUser.id}&select=state&limit=1`);
+    return data && data[0] ? data[0].state : null;
+  } catch(e) {
+    console.error(e);
+    return null;
+  }
 }
 
 async function initApp() {
-  // Verificar sesión activa
-  const { data: { session } } = await sb.auth.getSession();
+  // 1. Ver si viene de redirect OAuth (hash en URL)
+  const hashSession = await getSessionFromHash();
+  let session = hashSession;
 
+  // 2. Si no, ver si hay sesión guardada
   if (!session) {
-    // Sin sesión: mostrar pantalla de login
+    try { session = JSON.parse(sessionStorage.getItem('sb_session')); } catch(e) {}
+  }
+
+  if (!session || !session.access_token) {
     document.getElementById('authScreen').classList.remove('hidden');
     return;
   }
 
-  currentUser = session.user;
+  // Guardar sesión para refrescos de página
+  sessionStorage.setItem('sb_session', JSON.stringify(session));
+
+  try {
+    currentUser = await getUserFromToken(session.access_token);
+  } catch(e) {
+    // Token expirado
+    sessionStorage.removeItem('sb_session');
+    document.getElementById('authScreen').classList.remove('hidden');
+    return;
+  }
+
   document.getElementById('authScreen').classList.add('hidden');
 
-  // Cargar estado: primero local (para respuesta inmediata), luego remoto
+  // Cargar local inmediatamente
   state = loadLocal();
   render();
 
+  // Luego sincronizar remoto
   setSyncStatus('Sincronizando…');
   const remote = await loadRemote();
   if (remote) {
@@ -1210,11 +1288,10 @@ async function initApp() {
     render();
     setSyncStatus('Sincronizado ✓', 'var(--green)');
   } else {
-    // Primera vez: subir estado local a Supabase
     await saveRemote();
   }
 
-  // Agregar botón de logout al topbar
+  // Botón logout
   const tr = document.querySelector('.topbar-right');
   const logoutBtn = document.createElement('button');
   logoutBtn.className = 'tb-btn';
