@@ -1,0 +1,2191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tareas del Hogar</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+<style>
+:root {
+  --bg: #0e0e10;
+  --bg2: #141416;
+  --panel: #1a1a1e;
+  --card: #1f1f23;
+  --card-hover: #252529;
+  --border: #2a2a30;
+  --border2: #333339;
+  --text: #e8e8ee;
+  --text2: #9898a8;
+  --text3: #5a5a6a;
+  --orange: #f0873a;
+  --orange-bg: rgba(240,135,58,0.12);
+  --yellow: #e6c55a;
+  --yellow-bg: rgba(230,197,90,0.12);
+  --green: #4eca8b;
+  --green-bg: rgba(78,202,139,0.12);
+  --purple: #9b6dfa;
+  --purple-bg: rgba(155,109,250,0.12);
+  --blue: #5b9ef8;
+  --blue-bg: rgba(91,158,248,0.12);
+  --red: #f06a6a;
+  --red-bg: rgba(240,106,106,0.12);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* SVG icons */
+.icon { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.icon svg { display: block; }
+
+/* Icon wrappers with color bg like the reference */
+.cat-icon-wrap {
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.chore-icon-wrap {
+  width: 32px; height: 32px;
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ── TOPBAR ── */
+.topbar {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 52px;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  z-index: 10;
+}
+.topbar-left { display: flex; flex-direction: column; gap: 1px; }
+.topbar-title { font-size: 15px; font-weight: 600; color: var(--text); line-height: 1; }
+.topbar-title[contenteditable]:hover { background: var(--card); border-radius: 4px; padding: 2px 6px; margin: -2px -6px; cursor: text; }
+.topbar-title[contenteditable]:focus { outline: none; background: var(--card); border-radius: 4px; padding: 2px 6px; margin: -2px -6px; }
+.topbar-sub { font-size: 12px; color: var(--text2); }
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+.tb-btn {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--panel);
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.tb-btn:hover { color: var(--text); background: var(--card-hover); }
+
+/* ── BODY ── */
+.body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+.main { flex: 1; overflow-y: auto; padding: 20px 24px; }
+
+/* Filter bar */
+.filter-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+.search-box {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 7px; padding: 7px 12px; width: 200px;
+}
+.search-box input {
+  background: none; border: none; outline: none;
+  color: var(--text); font-family: 'Inter', sans-serif; font-size: 13px; width: 100%;
+}
+.search-box input::placeholder { color: var(--text3); }
+.filter-btn {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--panel); border: 1px solid var(--border);
+  color: var(--text2); font-family: 'Inter', sans-serif;
+  font-size: 13px; padding: 7px 14px; border-radius: 7px;
+  cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.filter-btn:hover, .filter-btn.active { background: var(--card); color: var(--text); border-color: var(--border2); }
+.filter-btn .count {
+  background: var(--border2); color: var(--text2);
+  font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 99px;
+}
+.filter-btn.active .count { background: var(--orange); color: white; }
+.diff-btn.active .count { background: var(--diff-color) !important; color: white; }
+.diff-btn.active { border-color: var(--diff-color) !important; color: var(--text); }
+.filter-sep { width: 1px; height: 20px; background: var(--border2); margin: 0 2px; align-self: center; }
+
+/* Category */
+.category { margin-bottom: 4px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--bg2); }
+.category-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 13px 18px; cursor: pointer; transition: background 0.15s; user-select: none;
+}
+.category-header:hover { background: var(--panel); }
+.cat-title { font-size: 14px; font-weight: 600; flex: 1; }
+.cat-count { font-size: 12px; color: var(--text3); }
+.cat-chevron { color: var(--text3); transition: transform 0.2s; display: flex; align-items: center; }
+.category.collapsed .cat-chevron { transform: rotate(-90deg); }
+.category-body {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px; padding: 4px 14px 14px;
+}
+.category.collapsed .category-body { display: none; }
+
+/* Chore card */
+.chore-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 14px; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+.chore-card:hover { background: var(--card-hover); border-color: var(--border2); }
+.chore-card:active { transform: scale(0.98); }
+.chore-card.done { opacity: 0.45; cursor: default; pointer-events: none; }
+.chore-card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; gap: 8px; }
+.chore-card-name { font-size: 13px; font-weight: 500; line-height: 1.4; color: var(--text); flex: 1; }
+.chore-card.done .chore-card-name { text-decoration: line-through; color: var(--text3); }
+.chore-card-bottom { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.badge { font-size: 10px; font-weight: 600; letter-spacing: 0.4px; padding: 2px 7px; border-radius: 4px; text-transform: uppercase; }
+.badge-done   { background: var(--green-bg);  color: var(--green); }
+.badge-easy   { background: var(--blue-bg);   color: var(--blue); }
+.badge-medium { background: var(--yellow-bg); color: var(--yellow); }
+.badge-hard   { background: var(--red-bg);    color: var(--red); }
+.chore-pts-badge { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--orange); }
+
+.add-chore-btn {
+  background: var(--panel); border: 1px dashed var(--border2);
+  border-radius: 8px; padding: 14px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  color: var(--text3); font-size: 13px; font-family: 'Inter', sans-serif; transition: all 0.15s;
+}
+.add-chore-btn:hover { color: var(--text2); border-color: var(--text3); background: var(--card); }
+
+/* Sidebar */
+.sidebar {
+  width: 280px; flex-shrink: 0; background: var(--bg2);
+  border-left: 1px solid var(--border); overflow-y: auto;
+  padding: 20px; display: flex; flex-direction: column; gap: 20px;
+}
+.sidebar-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+.sidebar-sub { font-size: 12px; color: var(--text2); }
+.big-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.big-stat { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px 10px; text-align: center; }
+.big-num { font-size: 26px; font-weight: 600; line-height: 1; margin-bottom: 4px; }
+.big-num.orange { color: var(--orange); }
+.big-num.green  { color: var(--green); }
+.big-num.purple { color: var(--purple); }
+.big-label { font-size: 10px; color: var(--text3); font-weight: 500; }
+.progress-rows { display: flex; flex-direction: column; gap: 10px; }
+.prog-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+.prog-label { color: var(--text2); }
+.prog-val { color: var(--text); font-weight: 500; }
+.prog-val.orange { color: var(--orange); }
+.prog-bar-wrap { height: 3px; background: var(--border); border-radius: 2px; margin-top: 4px; overflow: hidden; }
+.prog-bar-fill { height: 100%; border-radius: 2px; background: var(--orange); transition: width 0.6s ease; }
+.divider { height: 1px; background: var(--border); }
+.sidebar-section-label { font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 10px; }
+.level-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+.level-name { font-size: 13px; font-weight: 600; color: var(--orange); margin-bottom: 2px; }
+.level-xp { font-size: 12px; color: var(--text2); margin-bottom: 10px; }
+.xp-bar-bg { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.xp-bar-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--orange), var(--yellow)); transition: width 0.6s ease; }
+.streak-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px; display: flex; align-items: center; gap: 12px; }
+.streak-icon-wrap { width: 40px; height: 40px; background: rgba(240,135,58,0.12); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+.streak-num { font-size: 22px; font-weight: 600; color: var(--orange); line-height: 1; }
+.streak-label { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.rewards-list { display: flex; flex-direction: column; gap: 6px; }
+.reward-row { background: var(--panel); border: 1px solid var(--border); border-radius: 7px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; }
+.reward-icon-wrap { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: var(--orange-bg); }
+.reward-name { flex: 1; font-size: 12px; color: var(--text2); line-height: 1.3; }
+.reward-cost { font-size: 11px; font-weight: 600; color: var(--text3); white-space: nowrap; }
+.btn-redeem {
+  background: var(--orange-bg); border: 1px solid rgba(240,135,58,0.3);
+  color: var(--orange); font-family: 'Inter', sans-serif; font-size: 11px;
+  font-weight: 600; padding: 4px 10px; border-radius: 5px; cursor: pointer;
+  white-space: nowrap; transition: all 0.15s; flex-shrink: 0;
+}
+.btn-redeem:hover { background: var(--orange); color: white; }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(60px);
+  background: var(--card); border: 1px solid var(--border2); color: var(--text);
+  font-size: 13px; padding: 10px 20px; border-radius: 8px;
+  z-index: 999; pointer-events: none;
+  transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s;
+  opacity: 0; white-space: nowrap; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+/* Modal */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  z-index: 100; display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--panel); border: 1px solid var(--border2);
+  border-radius: 12px; padding: 24px; width: 380px; max-width: 90vw;
+  display: flex; flex-direction: column; gap: 16px;
+  transform: scale(0.95); transition: transform 0.2s;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+}
+.modal-overlay.open .modal { transform: scale(1); }
+.modal-title { font-size: 15px; font-weight: 600; color: var(--text); }
+.modal-field { display: flex; flex-direction: column; gap: 6px; }
+.modal-field label { font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text3); }
+.modal-field input, .modal-field select {
+  background: var(--card); border: 1px solid var(--border2);
+  border-radius: 7px; padding: 9px 12px; color: var(--text);
+  font-family: 'Inter', sans-serif; font-size: 14px; outline: none; transition: border-color 0.15s;
+}
+.modal-field input:focus, .modal-field select:focus { border-color: var(--orange); }
+.modal-field select option { background: var(--card); }
+.modal-row { display: flex; gap: 10px; }
+.modal-row .modal-field { flex: 1; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+.btn-m-cancel { background: none; border: 1px solid var(--border2); color: var(--text2); font-family: 'Inter', sans-serif; font-size: 13px; padding: 8px 16px; border-radius: 7px; cursor: pointer; transition: all 0.15s; }
+.btn-m-cancel:hover { color: var(--text); border-color: var(--text3); }
+.btn-m-save { background: var(--orange); border: none; color: white; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; padding: 8px 20px; border-radius: 7px; cursor: pointer; transition: opacity 0.15s; }
+.btn-m-save:hover { opacity: 0.85; }
+
+
+/* Context menu */
+.chore-card { position: relative; }
+.chore-card:not(.done):hover .card-menu-btn { opacity: 1; }
+.card-menu-btn {
+  position: absolute; top: 10px; right: 10px;
+  width: 24px; height: 24px; border-radius: 5px;
+  background: var(--card-hover); border: 1px solid var(--border2);
+  color: var(--text3); cursor: pointer; display: flex;
+  align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.15s, color 0.15s;
+  z-index: 2;
+}
+.card-menu-btn:hover { color: var(--text); background: var(--border2); }
+.chore-card.done .card-menu-btn { display: none; }
+
+.ctx-menu {
+  position: absolute; top: 36px; right: 10px;
+  background: var(--panel); border: 1px solid var(--border2);
+  border-radius: 8px; padding: 4px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  z-index: 100; min-width: 130px;
+  animation: menuIn 0.12s ease;
+}
+@keyframes menuIn {
+  from { opacity: 0; transform: scale(0.95) translateY(-4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.ctx-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border-radius: 5px; cursor: pointer;
+  font-size: 13px; color: var(--text2); transition: all 0.1s;
+  white-space: nowrap;
+}
+.ctx-item:hover { background: var(--card-hover); color: var(--text); }
+.ctx-item.danger:hover { background: var(--red-bg); color: var(--red); }
+.ctx-divider { height: 1px; background: var(--border); margin: 3px 0; }
+
+/* Edit modal title update */
+
+/* ── HISTORY CHART ── */
+.chart-wrap {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 14px 10px;
+}
+.chart-header {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 12px;
+}
+.chart-title { font-size: 12px; font-weight: 600; color: var(--text2); }
+.chart-score {
+  font-size: 18px; font-weight: 600; color: var(--green);
+  letter-spacing: -0.5px;
+}
+.chart-score-label { font-size: 10px; color: var(--text3); margin-top: 1px; text-align: right; }
+.chart-svg-wrap { width: 100%; position: relative; }
+.chart-svg { width: 100%; display: block; overflow: visible; }
+.chart-no-data {
+  text-align: center; color: var(--text3); font-size: 12px;
+  padding: 24px 0; line-height: 1.6;
+}
+.chart-dates {
+  display: flex; justify-content: space-between;
+  margin-top: 6px; padding: 0 2px;
+}
+.chart-date-label { font-size: 10px; color: var(--text3); }
+.chart-meta-row {
+  display: flex; justify-content: space-between;
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.chart-meta-item { text-align: center; }
+.chart-meta-val { font-size: 13px; font-weight: 600; color: var(--text); }
+.chart-meta-lbl { font-size: 10px; color: var(--text3); margin-top: 1px; }
+
+/* history log rows */
+.hist-rows { display: flex; flex-direction: column; gap: 0; margin-top: 10px; }
+.hist-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 0; border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.hist-row:last-child { border-bottom: none; }
+.hist-date { color: var(--text3); flex-shrink: 0; width: 68px; }
+.hist-bar-wrap { flex: 1; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.hist-bar { height: 100%; background: var(--green); border-radius: 2px; transition: width 0.4s ease; }
+.hist-pts { color: var(--green); font-weight: 600; flex-shrink: 0; width: 44px; text-align: right; }
+
+/* ── MOBILE SIDEBAR DRAWER ── */
+.sidebar-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 50;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+.sidebar-overlay.open { opacity: 1; }
+
+@media (max-width: 700px) {
+  .sidebar {
+    display: flex !important;
+    position: fixed; top: 0; right: 0; bottom: 0;
+    width: 300px; z-index: 60;
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: -8px 0 32px rgba(0,0,0,0.5);
+  }
+  .sidebar.drawer-open { transform: translateX(0); }
+  .sidebar-overlay { display: block; }
+  .category-body { grid-template-columns: 1fr 1fr; }
+  .main { padding: 14px; }
+}
+@media (max-width: 480px) {
+  .category-body { grid-template-columns: 1fr; }
+}
+
+/* ── RECURRENCE BADGE ── */
+.recur-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10px; font-weight: 500;
+  color: var(--purple); background: var(--purple-bg);
+  padding: 2px 6px; border-radius: 4px;
+}
+
+/* ── RECURRENCE SELECTOR in modal ── */
+.recur-options {
+  display: flex; gap: 6px; flex-wrap: wrap;
+}
+.recur-opt {
+  background: var(--card); border: 1px solid var(--border2);
+  color: var(--text2); font-family: 'Inter', sans-serif;
+  font-size: 12px; padding: 5px 10px; border-radius: 6px;
+  cursor: pointer; transition: all 0.15s; user-select: none;
+}
+.recur-opt.active { background: var(--purple-bg); border-color: var(--purple); color: var(--purple); }
+
+/* day pills */
+.day-pills { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
+.day-pill {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 500;
+  background: var(--card); border: 1px solid var(--border2);
+  color: var(--text3); cursor: pointer; transition: all 0.15s;
+}
+.day-pill.active { background: var(--purple-bg); border-color: var(--purple); color: var(--purple); }
+
+/* mobile progress btn */
+.tb-btn-progress {
+  display: none;
+}
+@media (max-width: 700px) {
+  .tb-btn-progress { display: flex; }
+}
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+
+/* ── TABS ── */
+.tab-bar {
+  display: flex; align-items: center; gap: 2px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  flex-shrink: 0;
+}
+.tab {
+  display: flex; align-items: center; gap: 7px;
+  padding: 10px 16px;
+  font-size: 13px; font-weight: 500;
+  color: var(--text3);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+  user-select: none;
+}
+.tab:hover { color: var(--text2); }
+.tab.active { color: var(--text); border-bottom-color: var(--orange); }
+.tab svg { flex-shrink: 0; }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+
+/* topbar actions per tab */
+.topbar-actions { display: flex; align-items: center; gap: 8px; }
+.tab-actions { display: none; }
+.tab-actions.active { display: contents; }
+
+/* ── POMODORO ── */
+.pomo-layout {
+  display: flex; flex: 1; min-height: 0; overflow: hidden;
+}
+.pomo-main {
+  flex: 1; overflow-y: auto; padding: 32px 24px;
+  display: flex; flex-direction: column; align-items: center; gap: 28px;
+}
+.pomo-sidebar {
+  width: 280px; flex-shrink: 0;
+  background: var(--bg2); border-left: 1px solid var(--border);
+  overflow-y: auto; padding: 20px;
+  display: flex; flex-direction: column; gap: 20px;
+}
+
+/* Mode selector */
+.pomo-modes {
+  display: flex; gap: 6px;
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 4px;
+}
+.pomo-mode {
+  flex: 1; text-align: center;
+  padding: 7px 10px; border-radius: 6px;
+  font-size: 12px; font-weight: 500;
+  color: var(--text3); cursor: pointer;
+  transition: all 0.15s; user-select: none;
+}
+.pomo-mode.active {
+  background: var(--card); color: var(--text);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+
+/* Timer ring */
+.pomo-ring-wrap {
+  position: relative; display: flex;
+  align-items: center; justify-content: center;
+}
+.pomo-ring-svg { transform: rotate(-90deg); }
+.pomo-ring-bg { fill: none; stroke: var(--border); }
+.pomo-ring-fill {
+  fill: none;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.5s ease, stroke 0.3s ease;
+}
+.pomo-ring-center {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 4px;
+}
+.pomo-time {
+  font-size: 52px; font-weight: 300;
+  letter-spacing: -2px; line-height: 1;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.pomo-mode-label {
+  font-size: 12px; color: var(--text3);
+  letter-spacing: 1.5px; text-transform: uppercase;
+}
+
+/* Controls */
+.pomo-controls { display: flex; align-items: center; gap: 12px; }
+.pomo-btn-main {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: var(--orange); border: none; color: white;
+  font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600;
+  padding: 12px 36px; border-radius: 8px; cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+  letter-spacing: 0.3px;
+}
+.pomo-btn-main:hover { opacity: 0.88; }
+.pomo-btn-main:active { transform: scale(0.97); }
+.pomo-btn-main.running { background: var(--card); border: 1px solid var(--border2); color: var(--text2); }
+.pomo-btn-icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px; border-radius: 8px;
+  background: var(--panel); border: 1px solid var(--border2);
+  color: var(--text3); cursor: pointer; transition: all 0.15s;
+}
+.pomo-btn-icon:hover { color: var(--text); border-color: var(--text3); }
+
+/* Session dots */
+.pomo-sessions {
+  display: flex; gap: 6px; align-items: center;
+}
+.pomo-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--border2); transition: background 0.2s;
+}
+.pomo-dot.done { background: var(--orange); }
+.pomo-dot.long { background: var(--green); }
+
+/* Task selector for pomodoro */
+.pomo-task-selector {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 14px; width: 100%; max-width: 420px;
+}
+.pomo-task-label {
+  font-size: 11px; font-weight: 600; color: var(--text3);
+  letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px;
+}
+.pomo-task-list { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; }
+.pomo-task-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 6px; cursor: pointer;
+  font-size: 13px; color: var(--text2); transition: all 0.12s;
+}
+.pomo-task-item:hover { background: var(--card); color: var(--text); }
+.pomo-task-item.selected { background: var(--orange-bg); color: var(--orange); }
+.pomo-task-item .pti-dot {
+  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+}
+.pomo-task-none { font-size: 12px; color: var(--text3); padding: 8px 4px; }
+
+/* Pomo sidebar stats */
+.pomo-stat-row {
+  display: flex; justify-content: space-between;
+  font-size: 13px; padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.pomo-stat-row:last-child { border-bottom: none; }
+.pomo-stat-label { color: var(--text2); }
+.pomo-stat-val { color: var(--text); font-weight: 600; }
+.pomo-stat-val.orange { color: var(--orange); }
+.pomo-stat-val.green { color: var(--green); }
+
+/* Pomo log */
+.pomo-log-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.pomo-log-item:last-child { border-bottom: none; }
+.pomo-log-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.pomo-log-text { flex: 1; color: var(--text2); }
+.pomo-log-time { color: var(--text3); }
+
+/* Settings card */
+.pomo-settings {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 14px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.pomo-setting-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.pomo-setting-label { font-size: 12px; color: var(--text2); }
+.pomo-setting-input {
+  width: 56px; background: var(--card); border: 1px solid var(--border2);
+  border-radius: 6px; padding: 5px 8px; color: var(--text);
+  font-family: 'Inter', sans-serif; font-size: 13px;
+  text-align: center; outline: none;
+}
+.pomo-setting-input:focus { border-color: var(--orange); }
+
+/* Sound toggle */
+.toggle-wrap { display: flex; align-items: center; gap: 8px; }
+.toggle {
+  width: 34px; height: 18px; background: var(--border2); border-radius: 99px;
+  position: relative; cursor: pointer; transition: background 0.2s; flex-shrink: 0;
+}
+.toggle.on { background: var(--orange); }
+.toggle::after {
+  content: ''; position: absolute; top: 2px; left: 2px;
+  width: 14px; height: 14px; border-radius: 50%; background: white;
+  transition: transform 0.2s;
+}
+.toggle.on::after { transform: translateX(16px); }
+
+@media (max-width: 700px) {
+  .pomo-sidebar { display: none; }
+  .pomo-main { padding: 20px 16px; }
+  .pomo-time { font-size: 42px; }
+}
+
+@media (max-width: 700px) { .sidebar { display: none; } .category-body { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 480px) { .category-body { grid-template-columns: 1fr; } .main { padding: 14px; } }
+/* ── AUTH SCREEN ── */
+#authScreen {
+  position: fixed; inset: 0; z-index: 1000;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+}
+#authScreen.hidden { display: none; }
+.auth-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 16px; padding: 40px 36px;
+  display: flex; flex-direction: column; align-items: center; gap: 20px;
+  width: 320px;
+}
+.auth-title { font-size: 20px; font-weight: 600; color: var(--text); }
+.auth-sub { font-size: 13px; color: var(--text3); text-align: center; line-height: 1.5; }
+.auth-btn-google {
+  display: flex; align-items: center; gap: 10px;
+  background: white; color: #1f1f1f;
+  border: none; border-radius: 8px;
+  padding: 11px 20px; font-size: 14px; font-weight: 500;
+  font-family: 'Inter', sans-serif; cursor: pointer; width: 100%;
+  justify-content: center; transition: opacity 0.15s;
+}
+.auth-btn-google:hover { opacity: 0.9; }
+.auth-btn-google svg { flex-shrink: 0; }
+.auth-error { font-size: 12px; color: #f87171; text-align: center; }
+#syncStatus {
+  font-size: 11px; color: var(--text3);
+  position: fixed; bottom: 10px; right: 14px;
+  z-index: 200; pointer-events: none;
+}
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="authScreen">
+  <div class="auth-card">
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+    <div class="auth-title">Mi Espacio</div>
+    <div class="auth-sub">Iniciá sesión para sincronizar tu progreso en todos tus dispositivos.</div>
+    <button class="auth-btn-google" onclick="signInGoogle()">
+      <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Continuar con Google
+    </button>
+    <div class="auth-error" id="authError" style="display:none"></div>
+  </div>
+</div>
+
+<!-- SYNC STATUS -->
+<div id="syncStatus"></div>
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-title" id="topbarTitle" contenteditable="true" spellcheck="false" title="Hacé clic para editar">Mi Espacio</div>
+    <div class="topbar-sub" id="topSub">— 0 completadas hoy (0%)</div>
+  </div>
+  <div class="topbar-right">
+    <div class="tab-actions active" id="actions-tareas">
+      <button class="tb-btn" onclick="openModal()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        Agregar tarea
+      </button>
+      <button class="tb-btn" onclick="resetToday()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        Reset día
+      </button>
+      <button class="tb-btn tb-btn-progress" onclick="openSidebar()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 16 4-4 4 4 4-4"/></svg>
+        Progreso
+      </button>
+    </div>
+    <div class="tab-actions" id="actions-pomo">
+      <button class="tb-btn" onclick="resetPomo()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        Reiniciar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- TAB BAR -->
+<div class="tab-bar">
+  <div class="tab active" id="tab-tareas" onclick="switchTab('tareas')">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+    Tareas
+  </div>
+  <div class="tab" id="tab-pomo" onclick="switchTab('pomo')">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    Pomodoro
+  </div>
+</div>
+
+<!-- BODY -->
+<div class="body" style="flex-direction:column">
+
+<!-- TAB: TAREAS -->
+<div class="tab-panel active" id="panel-tareas">
+<div style="display:flex;flex:1;min-height:0;overflow:hidden">
+  <div class="main">
+    <div class="filter-bar">
+      <div class="search-box">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text3);flex-shrink:0"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input placeholder="Buscar tarea..." id="searchInput" oninput="render()"/>
+      </div>
+      <button class="filter-btn active" id="f-all" onclick="setFilter('all')">Todas <span class="count" id="fc-all">0</span></button>
+      <button class="filter-btn" id="f-pending" onclick="setFilter('pending')">Pendientes <span class="count" id="fc-pending">0</span></button>
+      <button class="filter-btn" id="f-done" onclick="setFilter('done')">Completadas <span class="count" id="fc-done">0</span></button>
+      <div class="filter-sep"></div>
+      <button class="filter-btn diff-btn" id="d-easy" onclick="setDiff('easy')" style="--diff-color:var(--blue)">Fácil <span class="count" id="dc-easy">0</span></button>
+      <button class="filter-btn diff-btn" id="d-medium" onclick="setDiff('medium')" style="--diff-color:var(--yellow)">Normal <span class="count" id="dc-medium">0</span></button>
+      <button class="filter-btn diff-btn" id="d-hard" onclick="setDiff('hard')" style="--diff-color:var(--red)">Difícil <span class="count" id="dc-hard">0</span></button>
+    </div>
+    <div id="categoriesEl"></div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div>
+      <div class="sidebar-title">Tu progreso</div>
+      <div class="sidebar-sub" id="todayLabel">Hoy</div>
+    </div>
+    <div class="big-stats">
+      <div class="big-stat"><div class="big-num green" id="sb-done">0</div><div class="big-label">Hechas</div></div>
+      <div class="big-stat"><div class="big-num orange" id="sb-pending">0</div><div class="big-label">Pendientes</div></div>
+      <div class="big-stat"><div class="big-num purple" id="sb-pts">0</div><div class="big-label">Puntos</div></div>
+    </div>
+    <div class="progress-rows">
+      <div>
+        <div class="prog-row"><span class="prog-label">Tareas</span><span class="prog-val orange" id="pr-tareas">0/0 (0%)</span></div>
+        <div class="prog-bar-wrap"><div class="prog-bar-fill" id="pb-tareas" style="width:0%"></div></div>
+      </div>
+      <div><div class="prog-row"><span class="prog-label">Puntos totales</span><span class="prog-val" id="pr-pts">0</span></div></div>
+      <div><div class="prog-row"><span class="prog-label">Promedio diario</span><span class="prog-val" id="pr-avg">—</span></div></div>
+    </div>
+    <div class="divider"></div>
+    <div>
+      <div class="sidebar-section-label">Meta semanal de puntos</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+        <input id="weeklyGoalInput" type="number" min="0" step="10"
+          style="width:80px;background:var(--panel);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:5px 8px;font-size:13px;font-family:inherit"
+          placeholder="0" oninput="saveWeeklyGoal()"/>
+        <span style="font-size:12px;color:var(--text3)">pts / semana</span>
+      </div>
+      <div style="margin-top:8px">
+        <div class="prog-row"><span class="prog-label">Esta semana</span><span class="prog-val orange" id="pr-weekly">0 / 0 pts</span></div>
+        <div class="prog-bar-wrap"><div class="prog-bar-fill" id="pb-weekly" style="width:0%;background:var(--purple)"></div></div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div>
+      <div class="sidebar-section-label">Nivel</div>
+      <div class="level-card">
+        <div class="level-name" id="lvl-name">Aprendiz</div>
+        <div class="level-xp" id="lvl-xp">0 / 100 XP</div>
+        <div class="xp-bar-bg"><div class="xp-bar-fill" id="xp-fill" style="width:0%"></div></div>
+      </div>
+    </div>
+    <div>
+      <div class="sidebar-section-label">Racha</div>
+      <div class="streak-card">
+        <div class="streak-icon-wrap">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c0 6-6 7-6 13a6 6 0 0 0 12 0c0-6-6-7-6-13z"/><path d="M12 12c0 3-2 4-2 6a2 2 0 0 0 4 0c0-2-2-3-2-6z"/></svg>
+        </div>
+        <div>
+          <div class="streak-num" id="streak-num">0</div>
+          <div class="streak-label">días consecutivos</div>
+        </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div>
+      <div class="sidebar-section-label">Recompensas</div>
+      <div class="rewards-list" id="rewardsList"></div>
+    </div>
+    <div class="divider"></div>
+    <div>
+      <div class="sidebar-section-label">Historial — últimos 30 días</div>
+      <div id="historyChart"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- TAB: POMODORO -->
+<div class="tab-panel" id="panel-pomo">
+<div class="pomo-layout">
+
+  <!-- POMO MAIN -->
+  <div class="pomo-main">
+
+    <!-- Mode selector -->
+    <div class="pomo-modes" style="width:100%;max-width:380px">
+      <div class="pomo-mode active" id="pm-focus" onclick="setPomoMode('focus')">Foco</div>
+      <div class="pomo-mode" id="pm-short" onclick="setPomoMode('short')">Descanso corto</div>
+      <div class="pomo-mode" id="pm-long" onclick="setPomoMode('long')">Descanso largo</div>
+    </div>
+
+    <!-- Ring timer -->
+    <div class="pomo-ring-wrap">
+      <svg class="pomo-ring-svg" width="260" height="260" viewBox="0 0 260 260">
+        <circle class="pomo-ring-bg" cx="130" cy="130" r="118" stroke-width="6"/>
+        <circle class="pomo-ring-fill" id="pomoRingFill" cx="130" cy="130" r="118"
+          stroke-width="6" stroke="var(--orange)"
+          stroke-dasharray="741.4" stroke-dashoffset="0"/>
+      </svg>
+      <div class="pomo-ring-center">
+        <div class="pomo-time" id="pomoTime">25:00</div>
+        <div class="pomo-mode-label" id="pomoModeLabel">FOCO</div>
+      </div>
+    </div>
+
+    <!-- Session dots -->
+    <div class="pomo-sessions" id="pomoDots"></div>
+
+    <!-- Controls -->
+    <div class="pomo-controls">
+      <div class="pomo-btn-icon" onclick="skipPomo()" title="Saltar">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="4" y2="20"/></svg>
+      </div>
+      <button class="pomo-btn-main" id="pomoBtn" onclick="togglePomo()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="pomoBtnIcon"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        <span id="pomoBtnText">Iniciar</span>
+      </button>
+      <div class="pomo-btn-icon" onclick="resetPomo()" title="Reiniciar">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- POMO SIDEBAR -->
+  <div class="pomo-sidebar">
+    <div>
+      <div class="sidebar-title">Sesiones</div>
+      <div class="sidebar-sub" id="pomoDateLabel">Hoy</div>
+    </div>
+
+    <div>
+      <div class="sidebar-section-label">Hoy</div>
+      <div class="pomo-settings" style="gap:8px">
+        <div class="pomo-stat-row"><span class="pomo-stat-label">Pomodoros</span><span class="pomo-stat-val orange" id="ps-today">0</span></div>
+        <div class="pomo-stat-row"><span class="pomo-stat-label">Tiempo enfocado</span><span class="pomo-stat-val" id="ps-time">0 min</span></div>
+        <div class="pomo-stat-row"><span class="pomo-stat-label">Racha actual</span><span class="pomo-stat-val green" id="ps-streak">0</span></div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div>
+      <div class="sidebar-section-label">Configuración</div>
+      <div class="pomo-settings">
+        <div class="pomo-setting-row">
+          <span class="pomo-setting-label">Foco (min)</span>
+          <input class="pomo-setting-input" id="cfg-focus" type="number" value="25" min="1" max="90" onchange="applySettings()"/>
+        </div>
+        <div class="pomo-setting-row">
+          <span class="pomo-setting-label">Descanso corto</span>
+          <input class="pomo-setting-input" id="cfg-short" type="number" value="5" min="1" max="30" onchange="applySettings()"/>
+        </div>
+        <div class="pomo-setting-row">
+          <span class="pomo-setting-label">Descanso largo</span>
+          <input class="pomo-setting-input" id="cfg-long" type="number" value="15" min="5" max="60" onchange="applySettings()"/>
+        </div>
+        <div class="pomo-setting-row">
+          <span class="pomo-setting-label">Ciclos hasta largo</span>
+          <input class="pomo-setting-input" id="cfg-cycles" type="number" value="4" min="2" max="8" onchange="applySettings()"/>
+        </div>
+        <div class="pomo-setting-row">
+          <span class="pomo-setting-label">Sonido</span>
+          <div class="toggle on" id="pomoSoundToggle" onclick="this.classList.toggle('on')"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div>
+      <div class="sidebar-section-label">Registro de hoy</div>
+      <div id="pomoLog"><div class="pomo-task-none">Sin sesiones todavía.</div></div>
+    </div>
+  </div>
+
+</div>
+</div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <div class="modal-title">Nueva tarea</div>
+    <div class="modal-row">
+      <div class="modal-field" style="flex:2"><label>Nombre</label><input id="m-name" placeholder="Limpiar el baño…"/></div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field"><label>Categoría</label><select id="m-cat"></select></div>
+      <div class="modal-field"><label>Dificultad</label><select id="m-diff"><option value="easy">Fácil</option><option value="medium">Normal</option><option value="hard">Difícil</option></select></div>
+      <div class="modal-field"><label>Puntos</label><input id="m-pts" type="number" value="10" min="1" max="999"/></div>
+    </div>
+    <div class="modal-field">
+      <label>Repetición</label>
+      <div class="recur-options">
+        <div class="recur-opt active" data-val="none" onclick="setRecur('none',this)">Sin repetir</div>
+        <div class="recur-opt" data-val="daily" onclick="setRecur('daily',this)">Diaria</div>
+        <div class="recur-opt" data-val="weekly" onclick="setRecur('weekly',this)">Semanal</div>
+      </div>
+      <div class="day-pills" id="m-days" style="display:none">
+        <div class="day-pill" data-day="0">Lu</div>
+        <div class="day-pill" data-day="1">Ma</div>
+        <div class="day-pill" data-day="2">Mi</div>
+        <div class="day-pill" data-day="3">Ju</div>
+        <div class="day-pill" data-day="4">Vi</div>
+        <div class="day-pill" data-day="5">Sa</div>
+        <div class="day-pill" data-day="6">Do</div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-m-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-m-save" onclick="addChore()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="editOverlay" onclick="closeEditOutside(event)">
+  <div class="modal">
+    <div class="modal-title">Editar tarea</div>
+    <div class="modal-row">
+      <div class="modal-field" style="flex:2"><label>Nombre</label><input id="e-name" placeholder="Nombre de la tarea…"/></div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field"><label>Categoría</label><select id="e-cat"></select></div>
+      <div class="modal-field"><label>Dificultad</label><select id="e-diff"><option value="easy">Fácil</option><option value="medium">Normal</option><option value="hard">Difícil</option></select></div>
+      <div class="modal-field"><label>Puntos</label><input id="e-pts" type="number" value="10" min="1" max="999"/></div>
+    </div>
+    <div class="modal-field">
+      <label>Repetición</label>
+      <div class="recur-options">
+        <div class="recur-opt active" data-val="none" onclick="setRecurEdit('none',this)">Sin repetir</div>
+        <div class="recur-opt" data-val="daily" onclick="setRecurEdit('daily',this)">Diaria</div>
+        <div class="recur-opt" data-val="weekly" onclick="setRecurEdit('weekly',this)">Semanal</div>
+      </div>
+      <div class="day-pills" id="e-days" style="display:none">
+        <div class="day-pill" data-day="0">Lu</div>
+        <div class="day-pill" data-day="1">Ma</div>
+        <div class="day-pill" data-day="2">Mi</div>
+        <div class="day-pill" data-day="3">Ju</div>
+        <div class="day-pill" data-day="4">Vi</div>
+        <div class="day-pill" data-day="5">Sa</div>
+        <div class="day-pill" data-day="6">Do</div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-m-cancel" onclick="closeEdit()">Cancelar</button>
+      <button class="btn-m-save" onclick="saveEdit()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM MODAL -->
+<div class="modal-overlay" id="deleteOverlay">
+  <div class="modal" style="max-width:320px;gap:12px">
+    <div class="modal-title">¿Eliminar tarea?</div>
+    <p style="font-size:13px;color:var(--text2);line-height:1.5" id="deleteMsg">Esta acción no se puede deshacer.</p>
+    <div class="modal-actions">
+      <button class="btn-m-cancel" onclick="cancelDelete()">Cancelar</button>
+      <button class="btn-m-save" style="background:var(--red)" onclick="confirmDelete()">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM RESET MODAL -->
+<div class="modal-overlay" id="confirmOverlay">
+  <div class="modal" style="max-width:320px;gap:12px">
+    <div class="modal-title">¿Resetear el día?</div>
+    <p style="font-size:13px;color:var(--text2);line-height:1.5">Se van a desmarcar todas las tareas de hoy. Los puntos totales se mantienen.</p>
+    <div class="modal-actions">
+      <button class="btn-m-cancel" onclick="cancelReset()">Cancelar</button>
+      <button class="btn-m-save" onclick="confirmReset()">Resetear</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+
+// ── SVG ICONS ─────────────────────────────────────────────────────────
+// Lucide-style outline icons
+const ICONS = {
+  // chores
+  dishes:   `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a9 9 0 0 0 9-9H3a9 9 0 0 0 9 9z"/><path d="M12 3v3"/><path d="M5.6 5.6 7 7"/><path d="M18.4 5.6 17 7"/></svg>`,
+  kitchen:  `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><circle cx="12" cy="13" r="2"/><path d="M12 15v2"/></svg>`,
+  trash:    `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`,
+  broom:    `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20 17 7"/><path d="m17 7 2.5-2.5a2.121 2.121 0 0 0-3-3L14 4"/><path d="M4 20c0 0 4-1 6-3s2-6 2-6"/></svg>`,
+  mop:      `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18"/><path d="M12 3v10"/><path d="M8 13c0 4 4 5 4 8"/><path d="M16 13c0 4-4 5-4 8"/><path d="M5 13h14"/></svg>`,
+  bath:     `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6 6.5 3.5a1.5 1.5 0 0 0-1-.5C4.683 3 4 3.683 4 4.5V17a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/><line x1="4" x2="20" y1="11" y2="11"/></svg>`,
+  window:   `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M12 3v18"/><path d="M2 12h20"/></svg>`,
+  shirt:    `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"/></svg>`,
+  fold:     `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M12 4v16"/><path d="M2 12h10"/></svg>`,
+  bed:      `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>`,
+  plant:    `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V12"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/><circle cx="12" cy="5" r="3"/><path d="M6 12a6 6 0 0 1 12 0"/></svg>`,
+  // categories
+  cat_kitchen: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2"/><path d="M18 15a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>`,
+  cat_clean:   `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 11h1a2 2 0 0 1 0 4h-1"/><path d="M6 11h1a2 2 0 0 0 2-2V6a2 2 0 0 1 2-2h2.5"/><path d="m3 21 1.5-1.5"/><path d="m10 21-2.5-2.5"/><path d="m17 21-5-5"/><path d="m21 17-2.5-2.5"/><path d="M9 3H5a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h4"/></svg>`,
+  cat_laundry: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M3 12h18"/><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="15" r="3"/></svg>`,
+  cat_general: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
+  // rewards
+  rew_tv:      `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 2 8 2"/><path d="M12 2v5"/></svg>`,
+  rew_food:    `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>`,
+  rew_rest:    `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>`,
+  rew_shop:    `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" x2="21" y1="6" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>`,
+  rew_week:    `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>`,
+  // misc
+  check:  `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+  plus:   `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>`,
+  search: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>`,
+  reset:  `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>`,
+  chevron:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`,
+};
+
+// ── DATA ──────────────────────────────────────────────────────────────
+const LEVELS = [
+  { min:0,    name:'Aprendiz',           next:100 },
+  { min:100,  name:'Guardián del hogar', next:350 },
+  { min:350,  name:'Maestro',            next:850 },
+  { min:850,  name:'Señor del orden',    next:1650 },
+  { min:1650, name:'Leyenda',            next:2850 },
+  { min:2850, name:'Ícono doméstico',    next:Infinity },
+];
+
+const DEFAULT_CATS = [
+  { id:1, name:'Cocina',   iconKey:'cat_kitchen', color:'orange' },
+  { id:2, name:'Limpieza', iconKey:'cat_clean',   color:'blue' },
+  { id:3, name:'Ropa',     iconKey:'cat_laundry', color:'purple' },
+  { id:4, name:'General',  iconKey:'cat_general', color:'green' },
+];
+
+const DEFAULT_CHORES = [
+  { id:1,  catId:1, name:'Lavar los platos',    iconKey:'dishes',  diff:'easy',   pts:10 },
+  { id:2,  catId:1, name:'Limpiar la cocina',   iconKey:'kitchen', diff:'medium', pts:25 },
+  { id:3,  catId:1, name:'Sacar la basura',     iconKey:'trash',   diff:'easy',   pts:10 },
+  { id:4,  catId:2, name:'Barrer el piso',      iconKey:'broom',   diff:'easy',   pts:15 },
+  { id:5,  catId:2, name:'Pasar el trapo',      iconKey:'mop',     diff:'medium', pts:20 },
+  { id:6,  catId:2, name:'Limpiar el baño',     iconKey:'bath',    diff:'hard',   pts:40 },
+  { id:7,  catId:2, name:'Limpiar los vidrios', iconKey:'window',  diff:'medium', pts:20 },
+  { id:8,  catId:3, name:'Lavar la ropa',       iconKey:'shirt',   diff:'medium', pts:25 },
+  { id:9,  catId:3, name:'Doblar y guardar',    iconKey:'fold',    diff:'easy',   pts:10 },
+  { id:10, catId:4, name:'Ordenar el cuarto',   iconKey:'bed',     diff:'medium', pts:25 },
+  { id:11, catId:4, name:'Regar las plantas',   iconKey:'plant',   diff:'easy',   pts:8  },
+];
+
+const DEFAULT_REWARDS = [
+  { id:1, name:'Ver una serie sin culpa', iconKey:'rew_tv',   color:'blue',   cost:50 },
+  { id:2, name:'Pedir delivery',          iconKey:'rew_food', color:'orange', cost:120 },
+  { id:3, name:'Día sin tareas',          iconKey:'rew_rest', color:'green',  cost:200 },
+  { id:4, name:'Comprarte algo',          iconKey:'rew_shop', color:'purple', cost:400 },
+  { id:5, name:'Fin de semana libre',     iconKey:'rew_week', color:'yellow', cost:700 },
+];
+
+// ── SUPABASE ────────────────────────────────────────────────────────────
+// 🔧 REEMPLAZÁ ESTOS DOS VALORES con los tuyos de Supabase
+const SUPABASE_URL = 'https://rgsnqsmgynfujcnnndmc.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_xe02LPeusD8fO8Fa0ewmOw_kLd0a_Ne';
+
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let currentUser = null;
+
+async function signInGoogle() {
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.href }
+  });
+  if (error) showAuthError(error.message);
+}
+
+async function signOut() {
+  await sb.auth.signOut();
+  location.reload();
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('authError');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+function setSyncStatus(msg, color) {
+  const el = document.getElementById('syncStatus');
+  el.textContent = msg;
+  el.style.color = color || 'var(--text3)';
+  if (msg) setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 3000);
+}
+
+// ── STATE ─────────────────────────────────────────────────────────────
+function defaultState() {
+  return {
+    totalPts:0, doneCount:0, streak:0, lastDate:null,
+    todayPts:0, todayDate:null, daysLogged:0, totalDayPts:0, weeklyGoal:0,
+    cats:DEFAULT_CATS.map(c=>({...c})),
+    chores:DEFAULT_CHORES.map(c=>({...c})),
+    rewards:DEFAULT_REWARDS.map(r=>({...r})),
+    completedToday:[], nextId:12, collapsed:{}, history:[]
+  };
+}
+
+function loadLocal() {
+  try { const s=localStorage.getItem('chores_v4'); if(s) return JSON.parse(s); } catch(e){}
+  return defaultState();
+}
+
+function saveLocal(data) {
+  try { localStorage.setItem('chores_v4', JSON.stringify(data)); } catch(e){}
+}
+
+let _saveTimeout = null;
+function save() {
+  saveLocal(state);
+  // Debounce remote save 1.5s para no saturar con cada tecla
+  clearTimeout(_saveTimeout);
+  _saveTimeout = setTimeout(saveRemote, 1500);
+}
+
+async function saveRemote() {
+  if (!currentUser) return;
+  setSyncStatus('Guardando…');
+  const { error } = await sb.from('user_state').upsert({
+    user_id: currentUser.id,
+    state: state,
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'user_id' });
+  if (error) { setSyncStatus('Error al guardar', '#f87171'); console.error(error); }
+  else setSyncStatus('Guardado ✓', 'var(--green)');
+}
+
+async function loadRemote() {
+  if (!currentUser) return null;
+  const { data, error } = await sb.from('user_state')
+    .select('state')
+    .eq('user_id', currentUser.id)
+    .single();
+  if (error || !data) return null;
+  return data.state;
+}
+
+async function initApp() {
+  // Verificar sesión activa
+  const { data: { session } } = await sb.auth.getSession();
+
+  if (!session) {
+    // Sin sesión: mostrar pantalla de login
+    document.getElementById('authScreen').classList.remove('hidden');
+    return;
+  }
+
+  currentUser = session.user;
+  document.getElementById('authScreen').classList.add('hidden');
+
+  // Cargar estado: primero local (para respuesta inmediata), luego remoto
+  state = loadLocal();
+  render();
+
+  setSyncStatus('Sincronizando…');
+  const remote = await loadRemote();
+  if (remote) {
+    state = remote;
+    saveLocal(state);
+    render();
+    setSyncStatus('Sincronizado ✓', 'var(--green)');
+  } else {
+    // Primera vez: subir estado local a Supabase
+    await saveRemote();
+  }
+
+  // Agregar botón de logout al topbar
+  const tr = document.querySelector('.topbar-right');
+  const logoutBtn = document.createElement('button');
+  logoutBtn.className = 'tb-btn';
+  logoutBtn.style.cssText = 'font-size:11px;padding:4px 10px;';
+  logoutBtn.textContent = 'Salir';
+  logoutBtn.onclick = signOut;
+  tr.appendChild(logoutBtn);
+}
+
+let state = loadLocal();
+let activeFilter = 'all';
+let activeDiff = null;
+
+const todayStr = new Date().toDateString();
+if (state.todayDate !== todayStr) {
+  const prev = new Date(); prev.setDate(prev.getDate()-1);
+  if (state.lastDate === prev.toDateString() && state.completedToday.length > 0) state.streak++;
+  else if (state.completedToday.length === 0 && state.streak > 0) state.streak = 0;
+  if (state.completedToday.length > 0) {
+    state.daysLogged++;
+    state.totalDayPts += state.todayPts;
+    if (!state.history) state.history = [];
+    state.history.push({ date: state.todayDate, pts: state.todayPts, done: state.completedToday.length });
+    if (state.history.length > 30) state.history = state.history.slice(-30);
+  }
+  state.completedToday = []; state.todayPts = 0; state.todayDate = todayStr;
+  save();
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────
+function getLvlIdx() {
+  let i=0;
+  for(let j=LEVELS.length-1;j>=0;j--){ if(state.totalPts>=LEVELS[j].min){i=j;break;} }
+  return i;
+}
+
+let toastT;
+function toast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+function setFilter(f) {
+  activeFilter = f;
+  ['all','pending','done'].forEach(x=>document.getElementById('f-'+x).classList.toggle('active',x===f));
+  render();
+}
+
+function setDiff(d) {
+  activeDiff = (activeDiff === d) ? null : d;
+  ['easy','medium','hard'].forEach(x=>document.getElementById('d-'+x).classList.toggle('active', x===activeDiff));
+  render();
+}
+
+function colorVar(c) { return `var(--${c})`; }
+function colorBg(c) { return `var(--${c}-bg)`; }
+
+// ── RENDER ────────────────────────────────────────────────────────────
+function render() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const total = state.chores.length;
+  const doneToday = state.completedToday.length;
+  const pct = total ? Math.round(doneToday/total*100) : 0;
+
+  document.getElementById('topSub').textContent = `— ${doneToday} completadas hoy (${pct}%)`;
+  document.getElementById('todayLabel').textContent = new Date().toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'});
+  document.getElementById('fc-all').textContent = total;
+  document.getElementById('fc-pending').textContent = total - doneToday;
+  document.getElementById('fc-done').textContent = doneToday;
+  document.getElementById('dc-easy').textContent = state.chores.filter(c=>c.diff==='easy').length;
+  document.getElementById('dc-medium').textContent = state.chores.filter(c=>c.diff==='medium').length;
+  document.getElementById('dc-hard').textContent = state.chores.filter(c=>c.diff==='hard').length;
+
+  document.getElementById('sb-done').textContent = doneToday;
+  document.getElementById('sb-pending').textContent = total - doneToday;
+  document.getElementById('sb-pts').textContent = state.todayPts;
+  document.getElementById('pr-tareas').textContent = `${doneToday}/${total} (${pct}%)`;
+  document.getElementById('pb-tareas').style.width = pct+'%';
+  document.getElementById('pr-pts').textContent = state.totalPts + ' pts';
+  const avg = state.daysLogged>0 ? Math.round(state.totalDayPts/state.daysLogged) : null;
+  document.getElementById('pr-avg').textContent = avg ? avg+' pts/día' : '—';
+
+  // Weekly goal
+  const weeklyGoal = state.weeklyGoal || 0;
+  const weekPts = getWeekPts();
+  const weeklyGoalInput = document.getElementById('weeklyGoalInput');
+  if (weeklyGoalInput && weeklyGoalInput !== document.activeElement) weeklyGoalInput.value = weeklyGoal || '';
+  const weekPct = weeklyGoal > 0 ? Math.min(100, Math.round(weekPts/weeklyGoal*100)) : 0;
+  document.getElementById('pr-weekly').textContent = `${weekPts} / ${weeklyGoal||'—'} pts`;
+  document.getElementById('pb-weekly').style.width = weekPct+'%';
+
+  const li = getLvlIdx();
+  const lv = LEVELS[li]; const nextLv = LEVELS[li+1];
+  const xpIn = state.totalPts - lv.min;
+  const xpNeed = nextLv ? nextLv.min - lv.min : 1;
+  document.getElementById('lvl-name').textContent = `Nv. ${li+1} — ${lv.name}`;
+  document.getElementById('lvl-xp').textContent = nextLv ? `${xpIn} / ${xpNeed} XP` : 'Nivel máximo';
+  document.getElementById('xp-fill').style.width = (nextLv ? Math.min(100,xpIn/xpNeed*100) : 100)+'%';
+  document.getElementById('streak-num').textContent = state.streak;
+
+  // Rewards
+  const rl = document.getElementById('rewardsList');
+  rl.innerHTML = '';
+  state.rewards.forEach(r => {
+    const can = state.totalPts >= r.cost;
+    const row = document.createElement('div');
+    row.className = 'reward-row';
+    row.innerHTML = `
+      <div class="reward-icon-wrap" style="background:${colorBg(r.color)}">
+        <span style="color:${colorVar(r.color)}">${ICONS[r.iconKey]||ICONS.plus}</span>
+      </div>
+      <div class="reward-name">${r.name}</div>
+      ${can
+        ? `<button class="btn-redeem" onclick="redeem(${r.id})">Canjear</button>`
+        : `<div class="reward-cost">${r.cost} pts</div>`}`;
+    rl.appendChild(row);
+  });
+
+  // Categories
+  const el = document.getElementById('categoriesEl');
+  el.innerHTML = '';
+  const todayDow = (new Date().getDay() + 6) % 7; // 0=Mon ... 6=Sun
+  state.cats.forEach(cat => {
+    let chores = state.chores.filter(c=>c.catId===cat.id).filter(c => {
+      if (!c.recur || c.recur === 'none') return true;
+      if (c.recur === 'daily') return true;
+      if (c.recur === 'weekly') return c.recurDays && c.recurDays.includes(todayDow);
+      return true;
+    });
+    if (search) chores = chores.filter(c=>c.name.toLowerCase().includes(search));
+    if (activeFilter==='pending') chores = chores.filter(c=>!state.completedToday.includes(c.id));
+    if (activeFilter==='done')    chores = chores.filter(c=>state.completedToday.includes(c.id));
+    if (activeDiff) chores = chores.filter(c=>c.diff===activeDiff);
+    if (chores.length===0 && search) return;
+
+    const doneCat = chores.filter(c=>state.completedToday.includes(c.id)).length;
+    const collapsed = state.collapsed[cat.id];
+
+    const section = document.createElement('div');
+    section.className = 'category'+(collapsed?' collapsed':'');
+
+    const header = document.createElement('div');
+    header.className = 'category-header';
+    header.innerHTML = `
+      <div class="cat-icon-wrap" style="background:${colorBg(cat.color)};color:${colorVar(cat.color)}">
+        ${ICONS[cat.iconKey]||ICONS.plus}
+      </div>
+      <div class="cat-title" style="color:${colorVar(cat.color)}">${cat.name}</div>
+      <div class="cat-count">${doneCat}/${chores.length}</div>
+      <div class="cat-chevron">${ICONS.chevron}</div>`;
+    header.onclick = ()=>{ state.collapsed[cat.id]=!state.collapsed[cat.id]; save(); render(); };
+
+    const body = document.createElement('div');
+    body.className = 'category-body';
+
+    chores.forEach(c => {
+      const done = state.completedToday.includes(c.id);
+      const card = document.createElement('div');
+      card.className = 'chore-card'+(done?' done':'');
+
+      const diffLabel = {easy:'FÁCIL',medium:'NORMAL',hard:'DIFÍCIL'}[c.diff];
+      const iconSvg = ICONS[c.iconKey] || ICONS.plus;
+
+      card.innerHTML = `
+        <div class="chore-card-top">
+          <div class="chore-card-name">${c.name}</div>
+          <div class="chore-icon-wrap" style="background:${done?'var(--green-bg)':colorBg(cat.color)};color:${done?'var(--green)':colorVar(cat.color)}">
+            ${done ? ICONS.check : iconSvg}
+          </div>
+        </div>
+        <div class="chore-card-bottom">
+          ${done
+            ? '<span class="badge badge-done">✓ HECHA</span>'
+            : `<span class="badge badge-${c.diff}">${diffLabel}</span>`}
+          <div class="chore-pts-badge">+${c.pts} pts</div>
+        </div>
+        ${c.recur && c.recur !== 'none' ? `<div style="margin-top:6px">${renderRecurBadge(c)}</div>` : ''}
+        ${!done ? `
+        <button class="card-menu-btn" data-id="${c.id}">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+        </button>` : ''}`;
+      if (!done) {
+        card.onclick = (e) => {
+          if (e.target.closest('.card-menu-btn') || e.target.closest('.ctx-menu')) return;
+          completeChore(c, cat.color);
+        };
+        const menuBtn = card.querySelector('.card-menu-btn');
+        if (menuBtn) menuBtn.onclick = (e) => { e.stopPropagation(); openCtxMenu(e, c); };
+      }
+      body.appendChild(card);
+    });
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'add-chore-btn';
+    addBtn.innerHTML = `${ICONS.plus} Agregar`;
+    addBtn.onclick = ()=>openModal(cat.id);
+    body.appendChild(addBtn);
+
+    section.appendChild(header);
+    section.appendChild(body);
+    el.appendChild(section);
+  });
+
+  renderChart();
+
+  // Modal cat select
+  const ms = document.getElementById('m-cat');
+  if (ms) {
+    const prev = ms.value;
+    ms.innerHTML = state.cats.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+    if (prev) ms.value = prev;
+  }
+}
+
+// ── ACTIONS ───────────────────────────────────────────────────────────
+function completeChore(c, catColor) {
+  const prevLv = getLvlIdx();
+  state.completedToday.push(c.id);
+  state.totalPts += c.pts; state.todayPts += c.pts; state.doneCount++;
+  state.lastDate = todayStr;
+  save(); render();
+  const newLv = getLvlIdx();
+  if (newLv>prevLv) { playLevelUp(); toast(`⬆ Subiste al nivel ${newLv+1}: ${LEVELS[newLv].name}`); }
+  else { playComplete(); toast(`+${c.pts} pts — ${c.name}`); }
+}
+
+function redeem(id) {
+  const r=state.rewards.find(x=>x.id===id);
+  if(!r||state.totalPts<r.cost) return;
+  state.totalPts-=r.cost; save(); render();
+  playRedeem(); toast(`Canjeaste: ${r.name}`);
+}
+
+function resetToday() {
+  document.getElementById('confirmOverlay').classList.add('open');
+}
+
+function confirmReset() {
+  document.getElementById('confirmOverlay').classList.remove('open');
+  state.completedToday=[]; state.todayPts=0; save(); render();
+  toast('Día reseteado');
+}
+
+function cancelReset() {
+  document.getElementById('confirmOverlay').classList.remove('open');
+}
+
+function openModal(catId) {
+  if(catId) document.getElementById('m-cat').value=catId;
+  document.getElementById('modalOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('m-name').focus(),100);
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  document.getElementById('m-name').value='';
+  document.getElementById('m-pts').value=10;
+  // reset recur
+  document.querySelectorAll('#modalOverlay .recur-opt').forEach(el=>el.classList.toggle('active', el.dataset.val==='none'));
+  document.getElementById('m-days').style.display='none';
+  document.querySelectorAll('#m-days .day-pill').forEach(el=>el.classList.remove('active'));
+}
+
+function closeModalOutside(e) { if(e.target===document.getElementById('modalOverlay')) closeModal(); }
+
+function addChore() {
+  const name=document.getElementById('m-name').value.trim();
+  const catId=parseInt(document.getElementById('m-cat').value);
+  const diff=document.getElementById('m-diff').value;
+  const pts=parseInt(document.getElementById('m-pts').value)||10;
+  if(!name){toast('Escribí el nombre de la tarea');return;}
+
+  // Pick an icon based on keywords
+  const n = name.toLowerCase();
+  let iconKey = 'broom';
+  if(n.includes('plat')||n.includes('vaj')) iconKey='dishes';
+  else if(n.includes('cocin')||n.includes('forn')) iconKey='kitchen';
+  else if(n.includes('basur')||n.includes('tacho')) iconKey='trash';
+  else if(n.includes('barr')||n.includes('escob')) iconKey='broom';
+  else if(n.includes('trap')||n.includes('pis')) iconKey='mop';
+  else if(n.includes('baño')||n.includes('ducha')) iconKey='bath';
+  else if(n.includes('vidr')||n.includes('ventana')) iconKey='window';
+  else if(n.includes('rop')||n.includes('camis')||n.includes('lav')) iconKey='shirt';
+  else if(n.includes('dobl')||n.includes('guard')) iconKey='fold';
+  else if(n.includes('cama')||n.includes('cuart')||n.includes('orden')) iconKey='bed';
+  else if(n.includes('plant')||n.includes('regar')) iconKey='plant';
+
+  const recur = document.querySelector('#modalOverlay .recur-opt.active')?.dataset.val || 'none';
+  const recurDays = recur === 'weekly'
+    ? [...document.querySelectorAll('#m-days .day-pill.active')].map(el=>parseInt(el.dataset.day))
+    : [];
+  state.chores.push({id:state.nextId++,catId,name,iconKey,diff,pts,recur,recurDays});
+  save(); closeModal(); render();
+  toast(`Tarea agregada: ${name}`);
+}
+
+
+
+// ── HISTORY CHART ─────────────────────────────────────────────────────
+function renderChart() {
+  const el = document.getElementById('historyChart');
+  if (!el) return;
+  const hist = (state.history || []).slice(-14); // last 14 days
+
+  if (hist.length < 2) {
+    el.innerHTML = `<div class="chart-no-data">Completá tareas durante al menos<br>2 días para ver tu progreso.</div>`;
+    return;
+  }
+
+  const pts = hist.map(h => h.pts);
+  const maxPts = Math.max(...pts, 1);
+  const minPts = Math.min(...pts);
+  const latest = pts[pts.length - 1];
+  const prev = pts[pts.length - 2];
+  const diff = latest - prev;
+  const best = Math.max(...pts);
+  const avg = Math.round(pts.reduce((a,b)=>a+b,0)/pts.length);
+
+  // SVG line chart — same vibe as Kovaaks
+  const W = 220, H = 80, PAD = 8;
+  const n = hist.length;
+  const xStep = (W - PAD*2) / (n - 1);
+  const yRange = maxPts - minPts || 1;
+
+  function px(i) { return PAD + i * xStep; }
+  function py(v) { return H - PAD - ((v - minPts) / yRange) * (H - PAD*2); }
+
+  // Build path
+  let pathD = hist.map((h, i) => `${i===0?'M':'L'}${px(i).toFixed(1)},${py(h.pts).toFixed(1)}`).join(' ');
+  // Area fill path
+  let areaD = pathD + ` L${px(n-1).toFixed(1)},${H} L${px(0).toFixed(1)},${H} Z`;
+
+  // Dots — only first and last
+  const dotFirst = `<circle cx="${px(0).toFixed(1)}" cy="${py(pts[0]).toFixed(1)}" r="3" fill="var(--green)" opacity="0.6"/>`;
+  const dotLast  = `<circle cx="${px(n-1).toFixed(1)}" cy="${py(latest).toFixed(1)}" r="4" fill="var(--green)" stroke="var(--bg)" stroke-width="1.5"/>`;
+
+  // Y gridlines (3 lines)
+  let grids = '';
+  for (let g = 0; g <= 2; g++) {
+    const v = minPts + (yRange * g / 2);
+    const y = py(v).toFixed(1);
+    grids += `<line x1="${PAD}" y1="${y}" x2="${W-PAD}" y2="${y}" stroke="var(--border)" stroke-width="0.8"/>`;
+    grids += `<text x="${(PAD-2)}" y="${parseFloat(y)+3}" text-anchor="end" fill="var(--text3)" font-size="7">${Math.round(v)}</text>`;
+  }
+
+  // Score label top-right of chart
+  const scoreLabel = diff >= 0
+    ? `<tspan fill="var(--green)">▲ ${diff}</tspan>`
+    : `<tspan fill="var(--red)">▼ ${Math.abs(diff)}</tspan>`;
+
+  // First and last date labels
+  function fmtDate(d) {
+    const dt = new Date(d);
+    return dt.toLocaleDateString('es-AR',{day:'numeric',month:'short'});
+  }
+  const dateFirst = fmtDate(hist[0].date);
+  const dateLast  = fmtDate(hist[hist.length-1].date);
+
+  el.innerHTML = `
+    <div class="chart-wrap">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">PUNTOS POR DÍA</div>
+        </div>
+        <div>
+          <div class="chart-score">${latest.toLocaleString()}</div>
+          <div class="chart-score-label">${diff >= 0 ? '▲' : '▼'} ${Math.abs(diff)} vs ayer</div>
+        </div>
+      </div>
+      <div class="chart-svg-wrap">
+        <svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="var(--green)" stop-opacity="0.18"/>
+              <stop offset="100%" stop-color="var(--green)" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          ${grids}
+          <path d="${areaD}" fill="url(#areaGrad)"/>
+          <path d="${pathD}" fill="none" stroke="var(--green)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          ${dotFirst}
+          ${dotLast}
+        </svg>
+      </div>
+      <div class="chart-dates">
+        <span class="chart-date-label">${dateFirst}</span>
+        <span class="chart-date-label">${dateLast}</span>
+      </div>
+      <div class="chart-meta-row">
+        <div class="chart-meta-item"><div class="chart-meta-val">${best}</div><div class="chart-meta-lbl">Mejor día</div></div>
+        <div class="chart-meta-item"><div class="chart-meta-val">${avg}</div><div class="chart-meta-lbl">Promedio</div></div>
+        <div class="chart-meta-item"><div class="chart-meta-val">${hist.length}</div><div class="chart-meta-lbl">Días</div></div>
+      </div>
+    </div>
+    <div class="hist-rows">
+      ${hist.slice().reverse().slice(0,7).map(h => `
+        <div class="hist-row">
+          <div class="hist-date">${fmtDate(h.date)}</div>
+          <div class="hist-bar-wrap"><div class="hist-bar" style="width:${Math.round(h.pts/maxPts*100)}%"></div></div>
+          <div class="hist-pts">${h.pts} pts</div>
+        </div>`).join('')}
+    </div>`;
+}
+
+
+// ── SOUND ────────────────────────────────────────────────────────────
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function playComplete() {
+  try {
+    const ctx = getAudioCtx();
+    // Two-tone "ding" — pleasant and subtle
+    [[880, 0, 0.08], [1320, 0.08, 0.18]].forEach(([freq, start, end]) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0, ctx.currentTime + start);
+      gain.gain.linearRampToValueAtTime(0.18, ctx.currentTime + start + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + end);
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + end);
+    });
+  } catch(e) {}
+}
+
+function playLevelUp() {
+  try {
+    const ctx = getAudioCtx();
+    [523, 659, 784, 1047].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      osc.type = 'sine';
+      const t = ctx.currentTime + i * 0.1;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.2, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+      osc.start(t); osc.stop(t + 0.25);
+    });
+  } catch(e) {}
+}
+
+function playRedeem() {
+  try {
+    const ctx = getAudioCtx();
+    [392, 523, 659, 784, 1047].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      osc.type = 'triangle';
+      const t = ctx.currentTime + i * 0.07;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.15, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      osc.start(t); osc.stop(t + 0.22);
+    });
+  } catch(e) {}
+}
+
+// ── MOBILE SIDEBAR ────────────────────────────────────────────────────
+function openSidebar() {
+  document.getElementById('sidebarOverlay').classList.add('open');
+  document.querySelector('.sidebar').classList.add('drawer-open');
+}
+function closeSidebar() {
+  document.getElementById('sidebarOverlay').classList.remove('open');
+  document.querySelector('.sidebar').classList.remove('drawer-open');
+}
+
+// ── RECURRENCE HELPERS ────────────────────────────────────────────────
+function setRecur(val, el) {
+  document.querySelectorAll('#modalOverlay .recur-opt').forEach(e=>e.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('m-days').style.display = val === 'weekly' ? 'flex' : 'none';
+}
+
+function setRecurEdit(val, el) {
+  document.querySelectorAll('#editOverlay .recur-opt').forEach(e=>e.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('e-days').style.display = val === 'weekly' ? 'flex' : 'none';
+}
+
+// init day pill toggles
+document.querySelectorAll('.day-pill').forEach(pill => {
+  pill.addEventListener('click', () => pill.classList.toggle('active'));
+});
+
+const DAYS_ES = ['Lu','Ma','Mi','Ju','Vi','Sa','Do'];
+function renderRecurBadge(c) {
+  if (!c.recur || c.recur === 'none') return '';
+  if (c.recur === 'daily') return `<span class="recur-badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Diaria</span>`;
+  if (c.recur === 'weekly' && c.recurDays?.length) {
+    const days = c.recurDays.map(d=>DAYS_ES[d]).join(' · ');
+    return `<span class="recur-badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>${days}</span>`;
+  }
+  return `<span class="recur-badge">Semanal</span>`;
+}
+
+// pre-populate recur fields when opening edit modal
+const _origOpenEdit = openEdit;
+
+// ── CONTEXT MENU ──────────────────────────────────────────────────────
+let ctxMenu = null;
+function openCtxMenu(e, chore) {
+  closeCtxMenu();
+  const btn = e.currentTarget;
+  const menu = document.createElement('div');
+  menu.className = 'ctx-menu';
+  menu.innerHTML = `
+    <div class="ctx-item" id="ctx-edit">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Editar
+    </div>
+    <div class="ctx-divider"></div>
+    <div class="ctx-item danger" id="ctx-delete">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+      Eliminar
+    </div>`;
+  menu.querySelector('#ctx-edit').onclick = (ev) => { ev.stopPropagation(); closeCtxMenu(); openEdit(chore); };
+  menu.querySelector('#ctx-delete').onclick = (ev) => { ev.stopPropagation(); closeCtxMenu(); openDeleteConfirm(chore); };
+  btn.parentElement.appendChild(menu);
+  ctxMenu = menu;
+  setTimeout(() => document.addEventListener('click', closeCtxMenu, { once: true }), 0);
+}
+function closeCtxMenu() {
+  if (ctxMenu) { ctxMenu.remove(); ctxMenu = null; }
+}
+
+// ── EDIT ──────────────────────────────────────────────────────────────
+let editingId = null;
+function openEdit(chore) {
+  editingId = chore.id;
+  const ec = document.getElementById('e-cat');
+  ec.innerHTML = state.cats.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  document.getElementById('e-name').value = chore.name;
+  ec.value = chore.catId;
+  document.getElementById('e-diff').value = chore.diff;
+  document.getElementById('e-pts').value = chore.pts;
+  // recurrence
+  const recur = chore.recur || 'none';
+  document.querySelectorAll('#editOverlay .recur-opt').forEach(el => {
+    el.classList.toggle('active', el.dataset.val === recur);
+  });
+  const eDays = document.getElementById('e-days');
+  eDays.style.display = recur === 'weekly' ? 'flex' : 'none';
+  document.querySelectorAll('#e-days .day-pill').forEach(pill => {
+    pill.classList.toggle('active', (chore.recurDays||[]).includes(parseInt(pill.dataset.day)));
+  });
+  document.getElementById('editOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('e-name').focus(), 100);
+}
+function closeEdit() {
+  document.getElementById('editOverlay').classList.remove('open');
+  editingId = null;
+}
+function closeEditOutside(e) { if (e.target === document.getElementById('editOverlay')) closeEdit(); }
+function saveEdit() {
+  const name = document.getElementById('e-name').value.trim();
+  if (!name) { toast('El nombre no puede estar vacío'); return; }
+  const chore = state.chores.find(c => c.id === editingId);
+  if (!chore) return;
+  chore.name = name;
+  chore.catId = parseInt(document.getElementById('e-cat').value);
+  chore.diff = document.getElementById('e-diff').value;
+  chore.pts = parseInt(document.getElementById('e-pts').value) || 10;
+  // auto-update icon based on new name
+  const n = name.toLowerCase();
+  if(n.includes('plat')||n.includes('vaj')) chore.iconKey='dishes';
+  else if(n.includes('cocin')) chore.iconKey='kitchen';
+  else if(n.includes('basur')) chore.iconKey='trash';
+  else if(n.includes('barr')||n.includes('escob')) chore.iconKey='broom';
+  else if(n.includes('trap')||n.includes('pis')) chore.iconKey='mop';
+  else if(n.includes('baño')||n.includes('ducha')) chore.iconKey='bath';
+  else if(n.includes('vidr')||n.includes('ventana')) chore.iconKey='window';
+  else if(n.includes('rop')||n.includes('camis')||n.includes('lav')) chore.iconKey='shirt';
+  else if(n.includes('dobl')||n.includes('guard')) chore.iconKey='fold';
+  else if(n.includes('cama')||n.includes('cuart')||n.includes('orden')) chore.iconKey='bed';
+  else if(n.includes('plant')||n.includes('regar')) chore.iconKey='plant';
+  chore.recur = document.querySelector('#editOverlay .recur-opt.active')?.dataset.val || 'none';
+  chore.recurDays = chore.recur === 'weekly'
+    ? [...document.querySelectorAll('#e-days .day-pill.active')].map(el=>parseInt(el.dataset.day))
+    : [];
+  save(); closeEdit(); render();
+  toast(`Tarea actualizada: ${name}`);
+}
+
+// ── DELETE ────────────────────────────────────────────────────────────
+let deletingId = null;
+function openDeleteConfirm(chore) {
+  deletingId = chore.id;
+  document.getElementById('deleteMsg').textContent = `¿Eliminar "${chore.name}"? Esta acción no se puede deshacer.`;
+  document.getElementById('deleteOverlay').classList.add('open');
+}
+function cancelDelete() {
+  document.getElementById('deleteOverlay').classList.remove('open');
+  deletingId = null;
+}
+function confirmDelete() {
+  if (deletingId === null) return;
+  const chore = state.chores.find(c => c.id === deletingId);
+  state.chores = state.chores.filter(c => c.id !== deletingId);
+  state.completedToday = state.completedToday.filter(id => id !== deletingId);
+  deletingId = null;
+  save();
+  document.getElementById('deleteOverlay').classList.remove('open');
+  render();
+  toast(`Tarea eliminada: ${chore?.name}`);
+}
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeModal(); closeEdit(); cancelDelete(); closeCtxMenu(); closeSidebar(); } });
+
+
+// ── TABS ──────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  ['tareas','pomo'].forEach(t => {
+    document.getElementById('tab-'+t).classList.toggle('active', t===tab);
+    document.getElementById('panel-'+t).classList.toggle('active', t===tab);
+    document.getElementById('actions-'+t).classList.toggle('active', t===tab);
+  });
+  if (tab === 'pomo') renderPomoTaskList();
+}
+
+// ── POMODORO ENGINE ───────────────────────────────────────────────────
+const CIRCUMFERENCE = 2 * Math.PI * 118; // 741.4
+
+const pomoCfg = { focus:25, short:5, long:15, cycles:4 };
+let pomoState = {
+  mode: 'focus',       // 'focus' | 'short' | 'long'
+  running: false,
+  remaining: 25 * 60,  // seconds
+  total: 25 * 60,
+  cycle: 0,            // completed focus sessions
+  todaySessions: 0,
+  todayMinutes: 0,
+  streak: 0,
+  selectedTaskId: null,
+  log: [],             // {type, taskName, minutes, time}
+};
+let pomoInterval = null;
+
+function applySettings() {
+  pomoCfg.focus  = parseInt(document.getElementById('cfg-focus').value)  || 25;
+  pomoCfg.short  = parseInt(document.getElementById('cfg-short').value)  || 5;
+  pomoCfg.long   = parseInt(document.getElementById('cfg-long').value)   || 15;
+  pomoCfg.cycles = parseInt(document.getElementById('cfg-cycles').value) || 4;
+  if (!pomoState.running) {
+    const dur = { focus: pomoCfg.focus, short: pomoCfg.short, long: pomoCfg.long }[pomoState.mode];
+    pomoState.remaining = dur * 60;
+    pomoState.total     = dur * 60;
+    updatePomoUI();
+  }
+}
+
+function setPomoMode(mode) {
+  if (pomoState.running) return; // don't switch while running
+  pomoState.mode = mode;
+  const dur = { focus: pomoCfg.focus, short: pomoCfg.short, long: pomoCfg.long }[mode];
+  pomoState.remaining = dur * 60;
+  pomoState.total     = dur * 60;
+  ['focus','short','long'].forEach(m =>
+    document.getElementById('pm-'+m).classList.toggle('active', m===mode));
+  updatePomoUI();
+}
+
+function togglePomo() {
+  if (pomoState.running) {
+    clearInterval(pomoInterval);
+    pomoState.running = false;
+  } else {
+    pomoState.running = true;
+    pomoInterval = setInterval(pomoTick, 1000);
+  }
+  updatePomoBtn();
+}
+
+function pomoTick() {
+  if (pomoState.remaining <= 0) {
+    pomoComplete();
+    return;
+  }
+  pomoState.remaining--;
+  updatePomoRing();
+  updatePomoTime();
+}
+
+function pomoComplete() {
+  clearInterval(pomoInterval);
+  pomoState.running = false;
+
+  const soundOn = document.getElementById('pomoSoundToggle').classList.contains('on');
+  if (soundOn) playPomoEnd(pomoState.mode === 'focus');
+
+  if (pomoState.mode === 'focus') {
+    pomoState.cycle++;
+    pomoState.todaySessions++;
+    pomoState.todayMinutes += pomoCfg.focus;
+    pomoState.streak++;
+
+    // log entry
+    const task = state.chores.find(c => c.id === pomoState.selectedTaskId);
+    pomoState.log.unshift({
+      type: 'focus',
+      taskName: task ? task.name : null,
+      minutes: pomoCfg.focus,
+      time: new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})
+    });
+    if (pomoState.log.length > 20) pomoState.log.pop();
+
+    // Auto-advance to next break
+    const nextMode = pomoState.cycle % pomoCfg.cycles === 0 ? 'long' : 'short';
+    ['focus','short','long'].forEach(m =>
+      document.getElementById('pm-'+m).classList.toggle('active', m===nextMode));
+    pomoState.mode = nextMode;
+    const dur = { short: pomoCfg.short, long: pomoCfg.long }[nextMode];
+    pomoState.remaining = dur * 60;
+    pomoState.total     = dur * 60;
+    toast(`🍅 ¡Pomodoro completado! ${nextMode === 'long' ? 'Descanso largo merecido.' : 'Pequeño descanso.'}`);
+  } else {
+    // break done → go back to focus
+    ['focus','short','long'].forEach(m =>
+      document.getElementById('pm-'+m).classList.toggle('active', m==='focus'));
+    pomoState.mode = 'focus';
+    pomoState.remaining = pomoCfg.focus * 60;
+    pomoState.total     = pomoCfg.focus * 60;
+    toast('☕ Descanso terminado. ¡A focalizarse!');
+  }
+
+  updatePomoUI();
+  renderPomoSidebar();
+}
+
+function skipPomo() {
+  clearInterval(pomoInterval);
+  pomoState.running = false;
+  pomoState.remaining = 0;
+  pomoComplete();
+}
+
+function resetPomo() {
+  clearInterval(pomoInterval);
+  pomoInterval = null;
+  pomoState.running = false;
+  pomoState.mode = 'focus';
+  const dur = pomoCfg.focus;
+  pomoState.remaining = dur * 60;
+  pomoState.total     = dur * 60;
+  pomoState.cycle     = 0;
+  // sync mode buttons
+  ['focus','short','long'].forEach(m => {
+    document.getElementById('pm-'+m).classList.toggle('active', m==='focus');
+  });
+  updatePomoUI();
+}
+
+function updatePomoTime() {
+  const m = Math.floor(pomoState.remaining / 60).toString().padStart(2,'0');
+  const s = (pomoState.remaining % 60).toString().padStart(2,'0');
+  document.getElementById('pomoTime').textContent = `${m}:${s}`;
+  document.title = pomoState.running ? `${m}:${s} — Mi Espacio` : 'Mi Espacio';
+}
+
+function updatePomoRing() {
+  const pct = pomoState.remaining / pomoState.total;
+  const offset = CIRCUMFERENCE * (1 - pct);
+  const fill = document.getElementById('pomoRingFill');
+  fill.style.strokeDashoffset = offset;
+  // color: orange=focus, blue=short, green=long
+  const colors = { focus:'var(--orange)', short:'var(--blue)', long:'var(--green)' };
+  fill.style.stroke = colors[pomoState.mode];
+}
+
+function updatePomoBtn() {
+  const btn = document.getElementById('pomoBtn');
+  const icon = document.getElementById('pomoBtnIcon');
+  const txt = document.getElementById('pomoBtnText');
+  if (pomoState.running) {
+    btn.classList.add('running');
+    icon.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+    txt.textContent = 'Pausar';
+  } else {
+    btn.classList.remove('running');
+    icon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"/>';
+    txt.textContent = pomoState.remaining < pomoState.total ? 'Continuar' : 'Iniciar';
+  }
+}
+
+function updatePomoModeLabel() {
+  const labels = { focus:'FOCO', short:'DESCANSO CORTO', long:'DESCANSO LARGO' };
+  document.getElementById('pomoModeLabel').textContent = labels[pomoState.mode];
+}
+
+function updatePomoDots() {
+  const dots = document.getElementById('pomoDots');
+  dots.innerHTML = '';
+  for (let i = 0; i < pomoCfg.cycles; i++) {
+    const d = document.createElement('div');
+    const done = i < (pomoState.cycle % pomoCfg.cycles);
+    const isLong = i === pomoCfg.cycles - 1;
+    d.className = 'pomo-dot' + (done ? (isLong ? ' long' : ' done') : '');
+    dots.appendChild(d);
+  }
+}
+
+function updatePomoUI() {
+  updatePomoTime();
+  updatePomoRing();
+  updatePomoBtn();
+  updatePomoModeLabel();
+  updatePomoDots();
+}
+
+function renderPomoSidebar() {
+  document.getElementById('ps-today').textContent = pomoState.todaySessions;
+  document.getElementById('ps-time').textContent = pomoState.todayMinutes + ' min';
+  document.getElementById('ps-streak').textContent = pomoState.streak;
+  document.getElementById('pomoDateLabel').textContent =
+    new Date().toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'});
+
+  const logEl = document.getElementById('pomoLog');
+  if (pomoState.log.length === 0) {
+    logEl.innerHTML = '<div class="pomo-task-none">Sin sesiones todavía.</div>';
+  } else {
+    logEl.innerHTML = pomoState.log.map(e => {
+      const col = e.type === 'focus' ? 'var(--orange)' : 'var(--blue)';
+      const label = e.type === 'focus'
+        ? `🍅 ${e.minutes} min${e.taskName ? ' — '+e.taskName : ''}`
+        : `☕ Descanso`;
+      return `<div class="pomo-log-item">
+        <div class="pomo-log-dot" style="background:${col}"></div>
+        <div class="pomo-log-text">${label}</div>
+        <div class="pomo-log-time">${e.time}</div>
+      </div>`;
+    }).join('');
+  }
+}
+
+function renderPomoTaskList() {
+  const el = document.getElementById('pomoTaskList');
+  if (!el) return;
+  const pending = state.chores.filter(c => !state.completedToday.includes(c.id));
+  if (pending.length === 0) {
+    el.innerHTML = '<div class="pomo-task-none">No hay tareas pendientes.</div>';
+    return;
+  }
+  el.innerHTML = pending.map(c => {
+    const cat = state.cats.find(cat => cat.id === c.catId);
+    const col = cat ? `var(--${cat.color})` : 'var(--text3)';
+    const sel = c.id === pomoState.selectedTaskId;
+    return `<div class="pomo-task-item${sel?' selected':''}" onclick="selectPomoTask(${c.id})">
+      <div class="pti-dot" style="background:${col}"></div>
+      ${c.name}
+    </div>`;
+  }).join('');
+}
+
+function selectPomoTask(id) {
+  pomoState.selectedTaskId = pomoState.selectedTaskId === id ? null : id;
+  renderPomoTaskList();
+}
+
+// Pomodoro end sounds
+function playPomoEnd(isFocus) {
+  try {
+    const ctx = getAudioCtx();
+    if (isFocus) {
+      // 3-note fanfare
+      [[523,0],[659,0.12],[784,0.24]].forEach(([f,t]) => {
+        const o=ctx.createOscillator(), g=ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.frequency.value=f; o.type='sine';
+        g.gain.setValueAtTime(0,ctx.currentTime+t);
+        g.gain.linearRampToValueAtTime(0.22,ctx.currentTime+t+0.01);
+        g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+t+0.35);
+        o.start(ctx.currentTime+t); o.stop(ctx.currentTime+t+0.35);
+      });
+    } else {
+      // gentle soft tone for break end
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value=440; o.type='sine';
+      g.gain.setValueAtTime(0,ctx.currentTime);
+      g.gain.linearRampToValueAtTime(0.15,ctx.currentTime+0.05);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.5);
+      o.start(ctx.currentTime); o.stop(ctx.currentTime+0.5);
+    }
+  } catch(e) {}
+}
+
+// init pomo
+updatePomoUI();
+renderPomoSidebar();
+
+// Seed sample history for demo if empty
+if (!state.history) state.history = [];
+if (state.history.length === 0) {
+  const seed = [22,35,18,40,55,30,45,60,28,38,50,42,65,70];
+  const base = new Date(); base.setDate(base.getDate() - seed.length);
+  seed.forEach((pts, i) => {
+    const d = new Date(base); d.setDate(d.getDate() + i);
+    state.history.push({ date: d.toDateString(), pts, done: Math.ceil(pts/10) });
+  });
+  save();
+}
+
+// ── WEEKLY GOAL ────────────────────────────────────────────────────────
+function getWeekPts() {
+  // Sum pts from history for this week (Mon–Sun) + today
+  const now = new Date();
+  const dow = now.getDay(); // 0=Sun
+  const mondayOffset = dow === 0 ? 6 : dow - 1;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - mondayOffset);
+  monday.setHours(0,0,0,0);
+
+  const weekHistPts = (state.history||[])
+    .filter(h => new Date(h.date) >= monday)
+    .reduce((s,h) => s + h.pts, 0);
+  return weekHistPts + (state.todayPts||0);
+}
+
+function saveWeeklyGoal() {
+  const val = parseInt(document.getElementById('weeklyGoalInput').value) || 0;
+  state.weeklyGoal = val;
+  save();
+  render();
+}
+
+// ── EDITABLE TITLE ─────────────────────────────────────────────────────
+(function initTitle() {
+  const el = document.getElementById('topbarTitle');
+  const saved = localStorage.getItem('chores_title');
+  if (saved) el.textContent = saved;
+  el.addEventListener('blur', () => {
+    const val = el.textContent.trim() || 'Mi Espacio';
+    el.textContent = val;
+    localStorage.setItem('chores_title', val);
+    document.title = val;
+  });
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+  });
+  document.title = el.textContent.trim();
+})();
+
+// Exponer funciones al scope global para los onclick del HTML
+Object.assign(window, {
+  signInGoogle, signOut,
+  setFilter, setDiff, render,
+  completeChore, redeem, resetToday, confirmReset, cancelReset,
+  openModal, closeModal, closeModalOutside, addChore,
+  openSidebar, closeSidebar,
+  setRecur, setRecurEdit,
+  openCtxMenu, closeCtxMenu,
+  openEdit, closeEdit, closeEditOutside, saveEdit,
+  openDeleteConfirm, cancelDelete, confirmDelete,
+  switchTab,
+  setPomoMode, togglePomo, skipPomo, resetPomo, applySettings,
+  selectPomoTask,
+  saveWeeklyGoal,
+});
+
+// Arrancar
+initApp();
+</script>
+</body>
+</html>
